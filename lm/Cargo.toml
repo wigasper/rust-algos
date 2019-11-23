@@ -1,0 +1,7 @@
+[package]
+name = "lm"
+version = "0.1.0"
+authors = ["William Gasper <wigasper@gmail.com>"]
+edition = "2018"
+
+[dependencies]
