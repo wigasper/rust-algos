@@ -124,11 +124,11 @@ impl KMedoids {
         let labels = assign_identities(&self.medoids, &self.nodes, &self.label_indices, &self.dist_matrix);
         let mut current_cost = cost(&self.medoids, &labels, &self.label_indices, &self.dist_matrix);
         
-        // Fit loop
+        // Fit loop - continues until medoids don't change
         loop {
             let prior_medoids = self.medoids.to_vec();
             
-            // Try and swap every medoid with every non-medoid node check cost
+            // Try and swap every medoid with every non-medoid node and check cost
             for medoid in prior_medoids.iter() {
                 // Default best swap
                 let mut best_swap = self.nodes[0].to_string();
