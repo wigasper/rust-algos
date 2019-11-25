@@ -82,6 +82,19 @@ impl KMedoids {
         Default::default()
     }
 
+    fn swap_cost(&self, medoids: &Vec<String>, medoid: &String, node: &String) -> f64 {
+        let mut temp_medoids = medoids.to_vec();
+        let swap_index = temp_medoids.iter().position(|r| r == medoid).unwrap();
+        temp_medoids.remove(swap_index);
+        temp_medoids.insert(swap_index, node.to_string());
+        
+        let new_labels = assign_identities(&temp_medoids, &self.nodes, &self.label_indices,
+                                           &self.dist_matrix);
+        let new_cost = cost(&temp_medoids, &new_labels, &self.label_indices, &self.dist_matrix);
+
+        new_cost
+    }
+
     // Init function to deal with input if needed
     fn init(&mut self, labeled_matrix: &Vec<Vec<String>>) {
         for (index, col) in labeled_matrix[0].iter().enumerate() {
@@ -133,26 +146,57 @@ impl KMedoids {
         let mut num_iters: u64 = 0;
         loop {
             let prior_medoids = self.medoids.to_vec();
-            for (med_idx, _medoid) in prior_medoids.iter().enumerate() {
+            for medoid in prior_medoids.iter() {
+                // Default best swap
+                let mut best_swap = self.nodes[0].to_string();
+                let mut best_swap_cost = self.swap_cost(&prior_medoids, &medoid, &best_swap);
+                // Get swap costs for the medoid and every node
                 for node in self.nodes.iter() {
-                    //let putative_medoids = self.medoids.to_vec();
-                    //putative_medoids.remove(med_idx);
-                    if !prior_medoids.contains(node) {
-                        let mut new_medoids = prior_medoids.to_vec();
-                        new_medoids.remove(med_idx);
-                        new_medoids.push(node.to_string());
-                        let new_labels = assign_identities(&new_medoids, &self.nodes, &self.label_indices,
-                                                           &self.dist_matrix);
-                        let new_cost = cost(&new_medoids, &new_labels, &self.label_indices, &self.dist_matrix);
-                        if new_cost < current_cost {
-                            self.medoids = new_medoids.to_vec();
-                            current_cost = new_cost;
+                    if !self.medoids.contains(node) {
+                        let this_swap_cost = self.swap_cost(&prior_medoids, &medoid, &node);
+                        
+                        // If the swap cost is good, set vars
+                        if this_swap_cost < best_swap_cost {
+                            best_swap_cost = this_swap_cost;
+                            best_swap = node.to_string();
                         }
+                    //if !new_medoids.contains(node) {
+                        // new_medoids must reflect swaps from prior rounds, cannot just copy
+                        // prior_medoids in order to get correct labels and cost
+                        // let mut new_medoids = self.medoids.to_vec();
+                       
+                        // Remove medoid of interest, replace with node
+                        //let swap_index = new_medoids.iter().position(|r| r == medoid).unwrap()
+                        //new_medoids.remove(swap_index);
+                        //new_medoids.insert(swap_index, node.to_string());
+                        
+                        // Get new labels and cost for medoid/node swap
+                        //let new_labels = assign_identities(&new_medoids, &self.nodes, &self.label_indices,
+                        //                                   &self.dist_matrix);
+                        //let new_cost = cost(&new_medoids, &new_labels, &self.label_indices, &self.dist_matrix);
+                        
+                        // If the swap results in a lower cost, update everything, and then go back 
+                        // to fit_loop start in order to refresh everything and avoid a mutable
+                        // borrow of an immutable.
+                        //if new_cost < current_cost {
+                        //    let swap_index = self.medoids.iter().position(|r| r == medoid).unwrap();
+                        //    self.medoids.remove(swap_index);
+                        //    self.medoids.insert(swap_index, node.to_string());
+                        //    current_cost = new_cost;
+                        //    continue 'fit_loop;
+                       // }
                     }
+                }
+                // Make the best swap if it is less than the current_cost
+                if best_swap_cost < current_cost {
+                    let swap_index = self.medoids.iter().position(|r| r == medoid).unwrap();
+                    self.medoids.remove(swap_index);
+                    self.medoids.insert(swap_index, best_swap.to_string());
+                    current_cost = best_swap_cost;
                 }
             }
             num_iters += 1;
-            if (prior_medoids == self.medoids) & (num_iters > 3) {
+            if prior_medoids == self.medoids {
                 break;
             }
         }
