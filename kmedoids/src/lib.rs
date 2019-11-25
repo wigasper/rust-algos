@@ -32,11 +32,11 @@ fn cost(medoids: &Vec<String>, node_labels: &HashMap<String, usize>,
 //    }
 }
 
-fn assign_identities(medoids: &Vec<String>, node_labels: &HashMap<String, usize>,
+fn assign_identities(medoids: &Vec<String>, //node_labels: &HashMap<String, usize>,
                      nodes: &Vec<String>, label_indices: &HashMap<String, usize>,
                      dist_matrix: &Vec<Vec<f64>>) -> HashMap<String, usize> {
     // Assign each medoid the label of its index in the vector
-    let mut new_node_labels = node_labels.clone();
+    let mut new_node_labels: HashMap<String, usize> = HashMap::new();
     for (index, medoid) in medoids.iter().enumerate() {
         new_node_labels.insert(medoid.to_string(), index);
     }
@@ -73,6 +73,7 @@ pub struct KMedoids {
     label_indices: HashMap<String, usize>,
     nodes: Vec<String>,
     dist_matrix: Vec<Vec<f64>>,
+    k: u64,
     //dists: HashMap<(String, String), f64>,
 }
 
@@ -108,6 +109,7 @@ impl KMedoids {
     }
 
     fn fit(&mut self, k: u64) {
+        self.k = k;
         let mut keys = Vec::new();
         let mut rng = rand::thread_rng();
         
@@ -124,11 +126,52 @@ impl KMedoids {
             self.medoids.push(rand_node.to_string());
         }
         
-        let new_labels = assign_identities(&self.medoids, &self.node_labels, 
+        let labels = assign_identities(&self.medoids, //&self.node_labels, 
                                                    &self.nodes, &self.label_indices, &self.dist_matrix);
+        let mut current_cost = cost(&self.medoids, &labels, &self.label_indices, &self.dist_matrix);
         
+        let mut num_iters: u64 = 0;
         loop {
-            let prior_labels = new_labels.clone();
+            let prior_medoids = self.medoids.to_vec();
+            for (med_idx, _medoid) in prior_medoids.iter().enumerate() {
+                for node in self.nodes.iter() {
+                    //let putative_medoids = self.medoids.to_vec();
+                    //putative_medoids.remove(med_idx);
+                    if !prior_medoids.contains(node) {
+                        let mut new_medoids = prior_medoids.to_vec();
+                        new_medoids.remove(med_idx);
+                        new_medoids.push(node.to_string());
+                        let new_labels = assign_identities(&new_medoids, &self.nodes, &self.label_indices,
+                                                           &self.dist_matrix);
+                        let new_cost = cost(&new_medoids, &new_labels, &self.label_indices, &self.dist_matrix);
+                        if new_cost < current_cost {
+                            self.medoids = new_medoids.to_vec();
+                            current_cost = new_cost;
+                        }
+                    }
+                }
+            }
+            num_iters += 1;
+            if (prior_medoids == self.medoids) & (num_iters > 3) {
+                break;
+            }
+        }
+        self.node_labels = assign_identities(&self.medoids, &self.nodes, &self.label_indices, &self.dist_matrix);
+    }
+
+    fn print_labels(&mut self) {
+        for label in 0..self.k {
+            let mut relevant_nodes = Vec::new();
+            for (key, val) in self.node_labels.iter() {
+                if *val == label as usize {
+                    relevant_nodes.push(key.to_string());
+                }
+            }
+            print!("Cluster {}: ", label);
+            for node in relevant_nodes {
+                print!("{} ", node);
+            }
+            print!{"\n"};
         }
     }
 }
@@ -166,7 +209,7 @@ mod tests {
     #[test]
     fn test_assign_identities() {
         let medoids = vec!["c".to_string(), "e".to_string()];
-        let node_labels: HashMap<String, usize>= HashMap::new();
+        //let node_labels: HashMap<String, usize>= HashMap::new();
         let nodes = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string(), "e".to_string()];
         let mut label_indices: HashMap<String, usize> = HashMap::new();
         label_indices.insert("a".to_string(), 0);
@@ -180,7 +223,7 @@ mod tests {
         dist_matrix.push(vec![2.0, 1.0, 0.0, 4.0, 2.0]);
         dist_matrix.push(vec![3.0, 2.0, 4.0, 0.0, 1.0]);
         dist_matrix.push(vec![4.0, 3.0, 2.0, 1.0, 0.0]);
-        let new_labels = assign_identities(&medoids, &node_labels, &nodes, &label_indices, &dist_matrix);
+        let new_labels = assign_identities(&medoids, &nodes, &label_indices, &dist_matrix);
        
         let val_0: &usize = &0;
         let val_1: &usize = &1;
@@ -194,7 +237,7 @@ mod tests {
     #[test]
     fn test_cost() {
         let medoids = vec!["c".to_string(), "e".to_string()];
-        let node_labels: HashMap<String, usize>= HashMap::new();
+        //let node_labels: HashMap<String, usize>= HashMap::new();
         let nodes = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string(), "e".to_string()];
         let mut label_indices: HashMap<String, usize> = HashMap::new();
         label_indices.insert("a".to_string(), 0);
@@ -208,13 +251,13 @@ mod tests {
         dist_matrix.push(vec![2.0, 1.0, 0.0, 4.0, 2.0]);
         dist_matrix.push(vec![3.0, 2.0, 4.0, 0.0, 1.0]);
         dist_matrix.push(vec![4.0, 3.0, 2.0, 1.0, 0.0]);
-        let new_labels = assign_identities(&medoids, &node_labels, &nodes, &label_indices, &dist_matrix);
+        let new_labels = assign_identities(&medoids, &nodes, &label_indices, &dist_matrix);
        
         let cost0 = cost(&medoids, &new_labels, &label_indices, &dist_matrix);
         assert_eq!(cost0, 4.0);
         
         let medoids = vec!["e".to_string(), "c".to_string()];
-        let node_labels: HashMap<String, usize>= HashMap::new();
+        //let node_labels: HashMap<String, usize>= HashMap::new();
         let nodes = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string(), "e".to_string()];
         let mut label_indices: HashMap<String, usize> = HashMap::new();
         label_indices.insert("a".to_string(), 0);
@@ -228,13 +271,60 @@ mod tests {
         dist_matrix.push(vec![2.0, 1.0, 0.0, 4.0, 2.0]);
         dist_matrix.push(vec![3.0, 2.0, 4.0, 0.0, 1.0]);
         dist_matrix.push(vec![4.0, 3.0, 2.0, 1.0, 0.0]);
-        let new_labels = assign_identities(&medoids, &node_labels, &nodes, &label_indices, &dist_matrix);
+        let new_labels = assign_identities(&medoids, &nodes, &label_indices, &dist_matrix);
        
         let cost1 = cost(&medoids, &new_labels, &label_indices, &dist_matrix);
         assert_eq!(cost1, 4.0);
-
-    
     }
 
+    #[test]
+    fn test_fit_0() {
+        let mut lab_matrix: Vec<Vec<String>> = Vec::new();
+        lab_matrix.push(vec!["na".to_string(),"a".to_string(),"b".to_string(),"c".to_string(),"d".to_string(),"e".to_string()]);
+        lab_matrix.push(vec!["a".to_string(), "0".to_string(), "1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()]);
+        lab_matrix.push(vec!["b".to_string(), "1".to_string(), "0".to_string(), "1".to_string(), "2".to_string(), "3".to_string()]);
+        lab_matrix.push(vec!["c".to_string(), "2".to_string(), "1".to_string(), "0".to_string(), "4".to_string(), "2".to_string()]);
+        lab_matrix.push(vec!["d".to_string(), "3".to_string(), "2".to_string(), "4".to_string(), "0".to_string(), "1".to_string()]);
+        lab_matrix.push(vec!["e".to_string(), "4".to_string(), "3".to_string(), "2".to_string(), "1".to_string(), "0".to_string()]);
+        
+        let mut model = KMedoids::new();
+        model.init(&lab_matrix);
+        model.fit(2);
+        model.print_labels();
+    }
+
+    #[test]
+    fn test_fit_1() {
+        let mut lab_matrix: Vec<Vec<String>> = Vec::new();
+        lab_matrix.push(vec!["na".to_string(),"a".to_string(),"b".to_string(),"c".to_string(),"d".to_string(),"e".to_string()]);
+        lab_matrix.push(vec!["a".to_string(), "0".to_string(), "1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()]);
+        lab_matrix.push(vec!["b".to_string(), "1".to_string(), "0".to_string(), "1".to_string(), "2".to_string(), "3".to_string()]);
+        lab_matrix.push(vec!["c".to_string(), "2".to_string(), "1".to_string(), "0".to_string(), "4".to_string(), "2".to_string()]);
+        lab_matrix.push(vec!["d".to_string(), "3".to_string(), "2".to_string(), "4".to_string(), "0".to_string(), "1".to_string()]);
+        lab_matrix.push(vec!["e".to_string(), "4".to_string(), "3".to_string(), "2".to_string(), "1".to_string(), "0".to_string()]);
+        
+        let mut model = KMedoids::new();
+        model.init(&lab_matrix);
+        model.fit(3);
+        model.print_labels();
+    }
+
+    #[test]
+    fn test_fit_2() {
+        let mut lab_matrix: Vec<Vec<String>> = Vec::new();
+        lab_matrix.push(vec!["na".to_string(),"a".to_string(),"b".to_string(),"c".to_string(),"d".to_string(),"e".to_string(), "f".to_string()]);
+        lab_matrix.push(vec!["a".to_string(), "0".to_string(), "1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()]);
+        lab_matrix.push(vec!["b".to_string(), "1".to_string(), "0".to_string(), "1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()]);
+        lab_matrix.push(vec!["c".to_string(), "2".to_string(), "1".to_string(), "0".to_string(), "4".to_string(), "2".to_string(), "3".to_string()]);
+        lab_matrix.push(vec!["d".to_string(), "3".to_string(), "2".to_string(), "4".to_string(), "0".to_string(), "1".to_string(), "2".to_string()]);
+        lab_matrix.push(vec!["e".to_string(), "4".to_string(), "3".to_string(), "2".to_string(), "1".to_string(), "0".to_string(), "1".to_string()]);
+        lab_matrix.push(vec!["f".to_string(), "5".to_string(), "4".to_string(), "3".to_string(), "2".to_string(), "1".to_string(), "0".to_string()]);
+        
+        
+        let mut model = KMedoids::new();
+        model.init(&lab_matrix);
+        model.fit(2);
+        model.print_labels();
+    }
 
 }
