@@ -184,9 +184,8 @@ pub mod kmedoids {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    //use super::*;
-    use crate::kmedoids::*;
-
+    use super::kmedoids::*;
+    
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);
