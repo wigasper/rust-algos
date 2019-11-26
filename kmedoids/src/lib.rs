@@ -131,7 +131,8 @@ pub mod kmedoids {
                 // Try and swap every medoid with every non-medoid node and check cost
                 for medoid in prior_medoids.iter() {
                     // Default best swap
-                    let mut best_swap = self.nodes[0].to_string();
+                    let mut best_swap = self.nodes.iter().find(|&x| !self.medoids.contains(x)).unwrap().to_string();
+                    // let mut best_swap = self.nodes[0].to_string();
                     let mut best_swap_cost = self.swap_cost(&prior_medoids, &medoid, &best_swap);
                     
                     // Get swap costs for the medoid and every node
