@@ -169,7 +169,7 @@ pub mod kmedoids {
                     }
                 }
                 
-                // Break out of loop if medoids don't change since last round
+                // Break out of loop if medoids didn't change since last round
                 if prior_medoids == self.medoids {
                     break;
                 }
