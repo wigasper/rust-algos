@@ -2,18 +2,19 @@ mod lib;
 pub use crate::lib::kmedoids::*;
 
 use std::env;
-use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::Path;
 
+// main function for binary
 fn main() {
+    // Get command line args
     let args: Vec<String> = env::args().collect();
     let fp = &args[1];
     let k: u64 = args[2].parse().unwrap_or_else(|why| {
         panic!("could not parse '{}' for k: {}", args[2], why);
     });
 
+    // Read input file
     let mut file = File::open(fp).unwrap_or_else(|why| {
         panic!("could not open {}: {}", fp, why);
     });
@@ -23,6 +24,7 @@ fn main() {
 
     let mut data: Vec<Vec<String>> = Vec::new();
 
+    // Convert to String
     for line in str_in.split("\n") {
         if line.len() > 0 {
             let vals: Vec<&str> = line.split(",").collect();
@@ -35,6 +37,7 @@ fn main() {
         }
     }
 
+    // Run KMedoids, print output
     let mut model = KMedoids::new();
     model.init(&data);
     model.fit(k);

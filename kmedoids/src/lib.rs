@@ -4,6 +4,8 @@ pub mod kmedoids {
     use rand::Rng;
     use std::collections::HashMap;
 
+    // Calculates the total cost for a clustering configuration as the 
+    // sum of the distances of every node to its medoid
     pub fn cost(medoids: &Vec<String>, node_labels: &HashMap<String, usize>,
             label_indices: &HashMap<String, usize>, dist_matrix: &Vec<Vec<f64>>) -> f64 {
         // Get total cost
@@ -22,9 +24,12 @@ pub mod kmedoids {
         total_cost
     }
 
+    // Assigns cluster identities to each node: every node joins the cluster of its 
+    // closest medoid
     pub fn assign_identities(medoids: &Vec<String>, nodes: &Vec<String>, label_indices: &HashMap<String, usize>,
                          dist_matrix: &Vec<Vec<f64>>) -> HashMap<String, usize> {
-        // Assign each medoid the label of its index in the vector
+        // Assign each medoid the label of its index in the vector - simplifies labeling 
+        // and makes things easier for the cost function
         let mut new_node_labels: HashMap<String, usize> = HashMap::new();
         for (index, medoid) in medoids.iter().enumerate() {
             new_node_labels.insert(medoid.to_string(), index);
@@ -55,6 +60,7 @@ pub mod kmedoids {
         new_node_labels
     }
 
+    // struct definition
     #[derive(Default)]
     pub struct KMedoids {
         pub medoids: Vec<String>,
@@ -63,14 +69,16 @@ pub mod kmedoids {
         pub nodes: Vec<String>,
         pub dist_matrix: Vec<Vec<f64>>,
         pub k: u64,
-        //dists: HashMap<(String, String), f64>,
     }
 
+    // KMedoids struct implements these methods
     impl KMedoids {
+        // Constructor
         pub fn new() -> Self {
             Default::default()
         }
 
+        // Calculates the cost of swapping a medoid for a node
         fn swap_cost(&self, medoids: &Vec<String>, medoid: &String, node: &String) -> f64 {
             let mut temp_medoids = medoids.to_vec();
             let swap_index = temp_medoids.iter().position(|r| r == medoid).unwrap();
@@ -84,7 +92,8 @@ pub mod kmedoids {
             new_cost
         }
 
-        // Init function to deal with input if needed
+        // Init function to deal with input that is Vec<Vec<String>> type, converts
+        // to a Vec<Vec<f64>> 
         pub fn init(&mut self, labeled_matrix: &Vec<Vec<String>>) {
             for (index, col) in labeled_matrix[0].iter().enumerate() {
                 if index != 0 {
@@ -110,17 +119,21 @@ pub mod kmedoids {
             }
         }
 
+        // Fit function, chooses k medoids randomly and then swaps medoids with non-medoids 
+        // that improve cost until the medoids don't change anymore
         pub fn fit(&mut self, k: u64) {
             self.k = k;
             let mut rng = rand::thread_rng();
             
-            // use nodes here instead of keys
-            // initialize medoids, randomly choose k nodes
-            for _ in 0..k {
+            // Initialize medoids, randomly choose k nodes
+            while self.medoids.len() < k as usize {
                 let rand_node = self.nodes[rng.gen_range(0, self.nodes.len())].to_string();
-                self.medoids.push(rand_node.to_string());
+                if !self.medoids.contains(&rand_node) {
+                    self.medoids.push(rand_node.to_string());
+                }
             }
-            
+
+            // Assign cluster labels and get initial cost
             let labels = assign_identities(&self.medoids, &self.nodes, &self.label_indices, &self.dist_matrix);
             let mut current_cost = cost(&self.medoids, &labels, &self.label_indices, &self.dist_matrix);
             
@@ -132,7 +145,6 @@ pub mod kmedoids {
                 for medoid in prior_medoids.iter() {
                     // Default best swap
                     let mut best_swap = self.nodes.iter().find(|&x| !self.medoids.contains(x)).unwrap().to_string();
-                    // let mut best_swap = self.nodes[0].to_string();
                     let mut best_swap_cost = self.swap_cost(&prior_medoids, &medoid, &best_swap);
                     
                     // Get swap costs for the medoid and every node
@@ -140,14 +152,15 @@ pub mod kmedoids {
                         if !self.medoids.contains(node) {
                             let this_swap_cost = self.swap_cost(&prior_medoids, &medoid, &node);
                             
-                            // If the swap cost is good, set vars
+                            // If the swap cost is better than the current best, set vars
                             if this_swap_cost < best_swap_cost {
                                 best_swap_cost = this_swap_cost;
                                 best_swap = node.to_string();
                             }
                         }
                     }
-                    // Make the best swap if it is less than the current_cost
+
+                    // Make the best_swap if it is less than the current_cost
                     if best_swap_cost < current_cost {
                         let swap_index = self.medoids.iter().position(|r| r == medoid).unwrap();
                         self.medoids.remove(swap_index);
@@ -156,14 +169,16 @@ pub mod kmedoids {
                     }
                 }
                 
-                // Break out of loop if medoids don't change
+                // Break out of loop if medoids don't change since last round
                 if prior_medoids == self.medoids {
                     break;
                 }
             }
+            // Set final labels
             self.node_labels = assign_identities(&self.medoids, &self.nodes, &self.label_indices, &self.dist_matrix);
         }
 
+        // Prints labels
         pub fn print_labels(&mut self) {
             for label in 0..self.k {
                 let mut relevant_nodes = Vec::new();
